@@ -2,21 +2,22 @@
 <html>
 <head>
     <meta charset="utf-8" />
-    <title>BPL Branch Hover Info</title>
+    <title>BPL Branch & Council Map</title>
     <meta name="viewport" content="initial-scale=1,maximum-scale=1,user-scalable=no" />
     <script src="https://api.mapbox.com/mapbox-gl-js/v3.1.0/mapbox-gl.js"></script>
     <link href="https://api.mapbox.com/mapbox-gl-js/v3.1.0/mapbox-gl.css" rel="stylesheet" />
+    <script src="https://api.mapbox.com/mapbox-gl-js/plugins/mapbox-gl-geocoder/v5.0.1/mapbox-gl-geocoder.min.js"></script>
+    <link rel="stylesheet" href="https://api.mapbox.com/mapbox-gl-js/plugins/mapbox-gl-geocoder/v5.0.1/mapbox-gl-geocoder.css" type="text/css" />
     <style>
         body { margin: 0; padding: 0; }
         #map { position: absolute; top: 0; bottom: 0; width: 100%; }
         .mapboxgl-popup-content {
             font-family: Arial, sans-serif;
             font-size: 13px;
+            line-height: 1.4;
         }
-        .popup-img {
-            width: 100px;
-            margin-top: 5px;
-            border-radius: 4px;
+        .mapboxgl-ctrl-geocoder {
+            min-width: 300px;
         }
     </style>
 </head>
@@ -27,10 +28,20 @@
 
     const map = new mapboxgl.Map({
         container: 'map',
-        style: 'mapbox://styles/aaroninbrooklyn/cm9gdcnhx00ga01r3c0t3hy99',
+        style: 'mapbox://styles/aaroninbrooklyn/cm9ha0sz800k101qk0pi7amse',
         center: [-73.9266, 40.6343],
         zoom: 11.7
     });
+
+    // Add search bar
+    const geocoder = new MapboxGeocoder({
+        accessToken: mapboxgl.accessToken,
+        mapboxgl: mapboxgl,
+        placeholder: 'Search your address',
+        marker: false
+    });
+
+    map.addControl(geocoder, 'top-left');
 
     const popup = new mapboxgl.Popup({
         closeButton: false,
@@ -38,23 +49,58 @@
     });
 
     map.on('load', () => {
-        map.on('mousemove', 'bklynlibrary-branches-0qfsv6', (e) => {
-            const feature = e.features[0];
-            const props = feature.properties;
+        // Hover info for branches
+        map.on('mousemove', 'BPLBranchesMap-cepkea', (e) => {
+            const props = e.features[0].properties;
 
             const popupHtml = `
                 <strong>Branch:</strong> ${props["branch"] || "N/A"}<br/>
+                <strong>Address:</strong> ${props["address"] || "N/A"}<br/>
+                <strong>Phone:</strong> ${props["phone"] || "N/A"}<br/>
+                <strong>Amenities:</strong> ${props["Amenities"] || "N/A"}<br/>
+                <strong>Bus:</strong> ${props["bus"] || "N/A"}<br/>
+                <strong>Subway:</strong> ${props["subway"] || "N/A"}<br/>
+                <strong>Hours:</strong><br/>
+                Mon: ${props["Monday"] || "N/A"}<br/>
+                Tue: ${props["Tuesday"] || "N/A"}<br/>
+                Wed: ${props["Wednesday"] || "N/A"}<br/>
+                Thu: ${props["Thursday"] || "N/A"}<br/>
+                Fri: ${props["Friday"] || "N/A"}<br/>
+                Sat: ${props["Saturday"] || "N/A"}<br/>
+                Sun: ${props["Sunday"] || "N/A"}<br/>
                 <strong>Council District:</strong> ${props["CouncilDistrict"] || "N/A"}<br/>
                 <strong>Council Member:</strong> ${props["Council Member Name"] || "N/A"}<br/>
-                <strong>District Office Address:</strong> ${props["District Office Address"] || "N/A"}<br/>
-                <strong>District Office Phone:</strong> ${props["District Office Phone"] || "N/A"}<br/>
+                <strong>District Office:</strong> ${props["District Office Address"] || "N/A"}<br/>
+                <strong>District Phone:</strong> ${props["District Office Phone"] || "N/A"}<br/>
             `;
 
             popup.setLngLat(e.lngLat).setHTML(popupHtml).addTo(map);
         });
 
-        map.on('mouseleave', 'bklynlibrary-branches-0qfsv6', () => {
+        map.on('mouseleave', 'BPLBranchesMap-cepkea', () => {
             popup.remove();
+        });
+
+        // Click on geocoder result to find council district
+        geocoder.on('result', (e) => {
+            const coords = e.result.geometry.coordinates;
+
+            const features = map.queryRenderedFeatures(map.project(coords), {
+                layers: ['nyc-council-districts-bwhh6h']
+            });
+
+            if (features.length) {
+                const district = features[0].properties;
+                new mapboxgl.Popup()
+                    .setLngLat(coords)
+                    .setHTML(`
+                        <strong>Council District:</strong> ${district["coun_dist"] || "N/A"}<br/>
+                        <strong>Council Member:</strong> ${district["Council Member Name"] || "N/A"}<br/>
+                        <strong>District Office:</strong> ${district["District Office Address"] || "N/A"}<br/>
+                        <strong>District Phone:</strong> ${district["District Office Phone"] || "N/A"}
+                    `)
+                    .addTo(map);
+            }
         });
     });
 </script>
