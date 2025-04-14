@@ -32,69 +32,46 @@
         zoom: 11.7
     });
 
-    // Add search bar
-    map.addControl(new MapboxGeocoder({
+    const popup = new mapboxgl.Popup({
+        closeButton: true,
+        closeOnClick: true
+    });
+
+    // Geocoder control
+    const geocoder = new MapboxGeocoder({
         accessToken: mapboxgl.accessToken,
         mapboxgl: mapboxgl,
         placeholder: 'Search your address',
         marker: false
-    }), 'top-left');
-
-    const popup = new mapboxgl.Popup({
-        closeButton: false,
-        closeOnClick: false
     });
 
+    map.addControl(geocoder, 'top-left');
+
     map.on('load', () => {
-        // Hover info for BPL branches
-        map.on('mousemove', 'bplbranchesmap-cepkea', (e) => {
-            const props = e.features[0].properties;
+        // 🔍 Search triggers this
+        geocoder.on('result', (e) => {
+            const coords = e.result.geometry.coordinates;
 
-            const popupHtml = `
-                <strong>Branch:</strong> ${props["branch"] || "N/A"}<br/>
-                <strong>Address:</strong> ${props["address"] || "N/A"}<br/>
-                <strong>Phone:</strong> ${props["phone"] || "N/A"}<br/>
-                <strong>Amenities:</strong> ${props["Amenities"] || "N/A"}<br/>
-                <strong>Bus:</strong> ${props["bus"] || "N/A"}<br/>
-                <strong>Subway:</strong> ${props["subway"] || "N/A"}<br/>
-                <strong>Hours:</strong><br/>
-                Mon: ${props["Monday"] || "N/A"}<br/>
-                Tue: ${props["Tuesday"] || "N/A"}<br/>
-                Wed: ${props["Wednesday"] || "N/A"}<br/>
-                Thu: ${props["Thursday"] || "N/A"}<br/>
-                Fri: ${props["Friday"] || "N/A"}<br/>
-                Sat: ${props["Saturday"] || "N/A"}<br/>
-                Sun: ${props["Sunday"] || "N/A"}<br/>
-                <strong>Council District:</strong> ${props["CouncilDistrict"] || "N/A"}<br/>
-                <strong>Council Member:</strong> ${props["Council Member Name"] || "N/A"}<br/>
-                <strong>District Office:</strong> ${props["District Office Address"] || "N/A"}<br/>
-                <strong>District Phone:</strong> ${props["District Office Phone"] || "N/A"}<br/>
-            `;
-
-            popup.setLngLat(e.lngLat).setHTML(popupHtml).addTo(map);
-        });
-
-        map.on('mouseleave', 'bplbranchesmap-cepkea', () => {
-            popup.remove();
-        });
-
-        // Click on geocoder result to get district info
-        map.on('click', (e) => {
-            const features = map.queryRenderedFeatures(e.point, {
-                layers: ['nyc-council-districts-bwhh6h']
-            });
+            // Look up Council District feature under clicked point
+            const features = map.queryRenderedFeatures(
+                map.project(coords),
+                { layers: ['nyc-council-districts-bwhh6h'] }
+            );
 
             if (features.length) {
                 const props = features[0].properties;
-                new mapboxgl.Popup()
-                    .setLngLat(e.lngLat)
-                    .setHTML(`
-                        <strong>Council District:</strong> ${props["coun_dist"] || "N/A"}<br/>
-                        <strong>Council Member:</strong> ${props["Council Member Name"] || "N/A"}<br/>
-                        <strong>District Office:</strong> ${props["District Office Address"] || "N/A"}<br/>
-                        <strong>District Phone:</strong> ${props["District Office Phone"] || "N/A"}
-                    `)
-                    .addTo(map);
+
+                const html = `
+                    <strong>Council District:</strong> ${props["coun_dist"] || "N/A"}<br/>
+                    <strong>Council Member:</strong> ${props["Council Member Name"] || "N/A"}<br/>
+                    <strong>District Office:</strong> ${props["District Office Address"] || "N/A"}<br/>
+                    <strong>District Phone:</strong> ${props["District Office Phone"] || "N/A"}
+                `;
+
+                popup.setLngLat(coords).setHTML(html).addTo(map);
+                map.flyTo({ center: coords, zoom: 13 });
+            } else {
+                popup.setLngLat(coords).setHTML("No Council District found for this location.").addTo(map);
             }
         });
     });
