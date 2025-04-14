@@ -6,15 +6,14 @@
     <meta name="viewport" content="initial-scale=1,maximum-scale=1,user-scalable=no" />
     <script src="https://api.mapbox.com/mapbox-gl-js/v3.1.0/mapbox-gl.js"></script>
     <link href="https://api.mapbox.com/mapbox-gl-js/v3.1.0/mapbox-gl.css" rel="stylesheet" />
-    <script src="https://api.mapbox.com/mapbox-gl-js/plugins/mapbox-gl-geocoder/v5.0.1/mapbox-gl-geocoder.min.js"></script>
-    <link rel="stylesheet" href="https://api.mapbox.com/mapbox-gl-js/plugins/mapbox-gl-geocoder/v5.0.1/mapbox-gl-geocoder.css" type="text/css" />
+    <script src="https://api.mapbox.com/mapbox-gl-js/plugins/mapbox-gl-geocoder/v4.7.2/mapbox-gl-geocoder.min.js"></script>
+    <link href="https://api.mapbox.com/mapbox-gl-js/plugins/mapbox-gl-geocoder/v4.7.2/mapbox-gl-geocoder.css" rel="stylesheet" />
     <style>
         body { margin: 0; padding: 0; }
         #map { position: absolute; top: 0; bottom: 0; width: 100%; }
         .mapboxgl-popup-content {
             font-family: Arial, sans-serif;
             font-size: 13px;
-            line-height: 1.4;
         }
         .mapboxgl-ctrl-geocoder {
             min-width: 300px;
@@ -34,14 +33,12 @@
     });
 
     // Add search bar
-    const geocoder = new MapboxGeocoder({
+    map.addControl(new MapboxGeocoder({
         accessToken: mapboxgl.accessToken,
         mapboxgl: mapboxgl,
         placeholder: 'Search your address',
         marker: false
-    });
-
-    map.addControl(geocoder, 'top-left');
+    }), 'top-left');
 
     const popup = new mapboxgl.Popup({
         closeButton: false,
@@ -49,8 +46,8 @@
     });
 
     map.on('load', () => {
-        // Hover info for branches
-        map.on('mousemove', 'BPLBranchesMap-cepkea', (e) => {
+        // Hover info for BPL branches
+        map.on('mousemove', 'bplbranchesmap-cepkea', (e) => {
             const props = e.features[0].properties;
 
             const popupHtml = `
@@ -77,27 +74,25 @@
             popup.setLngLat(e.lngLat).setHTML(popupHtml).addTo(map);
         });
 
-        map.on('mouseleave', 'BPLBranchesMap-cepkea', () => {
+        map.on('mouseleave', 'bplbranchesmap-cepkea', () => {
             popup.remove();
         });
 
-        // Click on geocoder result to find council district
-        geocoder.on('result', (e) => {
-            const coords = e.result.geometry.coordinates;
-
-            const features = map.queryRenderedFeatures(map.project(coords), {
+        // Click on geocoder result to get district info
+        map.on('click', (e) => {
+            const features = map.queryRenderedFeatures(e.point, {
                 layers: ['nyc-council-districts-bwhh6h']
             });
 
             if (features.length) {
-                const district = features[0].properties;
+                const props = features[0].properties;
                 new mapboxgl.Popup()
-                    .setLngLat(coords)
+                    .setLngLat(e.lngLat)
                     .setHTML(`
-                        <strong>Council District:</strong> ${district["coun_dist"] || "N/A"}<br/>
-                        <strong>Council Member:</strong> ${district["Council Member Name"] || "N/A"}<br/>
-                        <strong>District Office:</strong> ${district["District Office Address"] || "N/A"}<br/>
-                        <strong>District Phone:</strong> ${district["District Office Phone"] || "N/A"}
+                        <strong>Council District:</strong> ${props["coun_dist"] || "N/A"}<br/>
+                        <strong>Council Member:</strong> ${props["Council Member Name"] || "N/A"}<br/>
+                        <strong>District Office:</strong> ${props["District Office Address"] || "N/A"}<br/>
+                        <strong>District Phone:</strong> ${props["District Office Phone"] || "N/A"}
                     `)
                     .addTo(map);
             }
